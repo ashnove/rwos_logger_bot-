@@ -1,7 +1,5 @@
 package com.rwos.rwos_logger.Repository;
 
-import java.util.List;
-
 import com.rwos.rwos_logger.Entity.Users;
 
 import org.springframework.data.jpa.repository.JpaRepository;

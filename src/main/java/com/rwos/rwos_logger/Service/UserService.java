@@ -19,6 +19,9 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    public Users addUser(Users user){
+        return userRepository.save(user);
+    }
     public void check(Users user) {
         try {
             if (Objects.isNull(userRepository.findByUserName(user.getUserName())))
