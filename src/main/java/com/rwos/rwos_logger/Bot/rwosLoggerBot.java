@@ -7,7 +7,7 @@ import java.util.List;
 
 import javax.annotation.PreDestroy;
 
-import com.rwos.rwos_logger.Entity.Users;
+import com.rwos.rwos_logger.Entity.User;
 import com.rwos.rwos_logger.Service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,10 +27,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
     @Autowired
     private UserService userService;
-    private String name;
-    private String userName;
-    private String firstName;
-    private String lastName;
 
     BotSession session = null;
 
@@ -39,6 +35,7 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+
         if (update.hasMessage() && update.getMessage().hasText()) {
             String command = update.getMessage().getText();
             SendMessage message = new SendMessage();
@@ -97,7 +94,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 message.setReplyMarkup(markupInline);
             }
 
-
             message.setChatId(update.getMessage().getChatId().toString());
             try {
                 execute(message);
@@ -106,29 +102,33 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             }
         } else if (update.hasCallbackQuery()) {
             String call_data = update.getCallbackQuery().getData();
-            // long message_id = update.getCallbackQuery().getMessage().getMessageId();
             String chat_id = update.getCallbackQuery().getMessage().getChatId().toString();
-
-            name = update.getMessage().getFrom().getFirstName() + " " + update.getMessage().getFrom().getLastName();
-            firstName = update.getMessage().getFrom().getFirstName();
-            lastName = update.getMessage().getFrom().getLastName();
-            userName = update.getMessage().getFrom().getUserName();
-
             SendMessage message = new SendMessage();
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
             LocalDateTime now = LocalDateTime.now();
             String date_time = dtf.format(now);
             String date = date_time.split(" ")[0];
             String time = date_time.split(" ")[1];
-            Users user = new Users();
+
+            System.out.println("callback name: " + update.getCallbackQuery().getFrom().getFirstName());
+
+            User user = new User();
+
+            String name = update.getCallbackQuery().getFrom().getFirstName() + " "
+                    + update.getCallbackQuery().getFrom().getLastName();
+            String firstName = update.getCallbackQuery().getFrom().getFirstName();
+            String lastName = update.getCallbackQuery().getFrom().getLastName();
+            Long userId = update.getCallbackQuery().getFrom().getId();
             user.setDateLog(date);
             user.setTimeLog(time);
             user.setFirstName(firstName);
             user.setLastName(lastName);
-            user.setUserName(userName);
+            user.setUserId(userId);
 
+            boolean statusCheck = false;
             if (call_data.equals("signin")) {
-                message.setText(date + ": " + name + " has signed in at " + time);
+                message.setText(
+                        date + ": " + update.getCallbackQuery().getFrom().getFirstName() + " has signed in at " + time);
                 user.setStatus("Online");
 
             } else if (call_data.equals("signout")) {
@@ -148,14 +148,20 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 user.setStatus("Leave");
 
             } else if (call_data.equals("status")) {
-                message.setText("Hey " + name.split(" ")[0] + ", No employees have registered to the programme yet!");
-                List<Users> allUser = userService.getAllStatus();
-                System.out.println(allUser);
+                statusCheck = true;
+                List<User> allUser = userService.getAllStatus();
+                String listData = "Status:";
+                for (User e : allUser) {
+                    listData += "\n";
+                    listData += e.getFirstName() + ": " + e.getStatus();
+                }
+                message.setText(listData);
 
             }
             System.out.println(user.toString());
-            userService.check(user);
-            message.setChatId(chat_id);
+            if (!statusCheck)
+                userService.check(user);
+            message.setChatId(teamChatID);
             try {
                 execute(message);
             } catch (TelegramApiException e) {
@@ -176,14 +182,13 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
     }
 
     @AfterBotRegistration
-    public void afterBotHookWithSession(BotSession session){
+    public void afterBotHookWithSession(BotSession session) {
         System.out.println("Session stored");
         this.session = session;
     }
 
-
     @PreDestroy
-    public void destroyComponent(){
+    public void destroyComponent() {
         System.out.println("destroing component");
         session.stop();
     }
