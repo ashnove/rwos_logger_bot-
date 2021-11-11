@@ -3,35 +3,45 @@ package com.rwos.rwos_logger.Service;
 import java.util.List;
 import java.util.Objects;
 
+import com.rwos.rwos_logger.Controller.MemberController;
+import com.rwos.rwos_logger.DTO.StatusResponse;
+import com.rwos.rwos_logger.Entity.TeamMember;
 import com.rwos.rwos_logger.Entity.User;
+import com.rwos.rwos_logger.Repository.MemberEventRepository;
+import com.rwos.rwos_logger.Repository.TeamMemberRepository;
 import com.rwos.rwos_logger.Repository.UserRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @Service
 public class UserService {
 
     @Autowired
-    private UserRepository userRepository;
+    private MemberController memberController;
 
-    public List<User> getAllStatus() {
-        return userRepository.findAll();
-    }
+    @Autowired
+    private TeamMemberRepository teamMemberRepository;
 
-    public void check(User user) {
-        try {
-            if (Objects.isNull(userRepository.findByUserId(user.getUserId())))
-                userRepository.save(user);
-            else {
-                String newStatus = user.getStatus();
-                String newDate = user.getDateLog();
-                String newTime = user.getTimeLog();
-                Long userId = user.getUserId();
-                userRepository.updateUserStatus(newDate, newStatus, newTime, userId);
-            }
-        } catch (Exception e) {
-            System.out.println("check() | " + e.getMessage());
+    public void addLog(TeamMember member) {
+        TeamMember getTeamMember = teamMemberRepository.findByUserId(member.getUserId());
+
+        if (Objects.isNull(getTeamMember))
+            teamMemberRepository.save(member);
+        else {
+            getTeamMember.getMember_events().addAll(member.getMember_events());
+            teamMemberRepository.save(getTeamMember);
         }
     }
+
+    public List<StatusResponse> getStausDetails() {
+        return teamMemberRepository.getCurrentStatusInfo();
+    }
+
+    // public void viewStatus(){
+    // memberController
+    // }
+
 }

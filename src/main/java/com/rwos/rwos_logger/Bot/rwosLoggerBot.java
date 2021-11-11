@@ -1,12 +1,20 @@
 package com.rwos.rwos_logger.Bot;
 
+import java.lang.ModuleLayer.Controller;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.PreDestroy;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rwos.rwos_logger.Controller.MemberController;
+import com.rwos.rwos_logger.DTO.StatusResponse;
+import com.rwos.rwos_logger.Entity.MemberEvent;
+import com.rwos.rwos_logger.Entity.TeamMember;
 import com.rwos.rwos_logger.Entity.User;
 import com.rwos.rwos_logger.Service.UserService;
 
@@ -31,7 +39,7 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
     BotSession session = null;
 
     @Value("${app.chatid}")
-    private String teamChatID;
+    private String FRESHER_TEAM_CHAT_ID;
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -102,7 +110,7 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             }
         } else if (update.hasCallbackQuery()) {
             String call_data = update.getCallbackQuery().getData();
-            String chat_id = update.getCallbackQuery().getMessage().getChatId().toString();
+            String LOGGER_CHAT_ID = update.getCallbackQuery().getMessage().getChatId().toString();
             SendMessage message = new SendMessage();
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
             LocalDateTime now = LocalDateTime.now();
@@ -112,56 +120,75 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
             System.out.println("callback name: " + update.getCallbackQuery().getFrom().getFirstName());
 
-            User user = new User();
+            // User user = new User();
 
-            String name = update.getCallbackQuery().getFrom().getFirstName() + " "
+            // String name = update.getCallbackQuery().getFrom().getFirstName() + " "
+            // + update.getCallbackQuery().getFrom().getLastName();
+            // String firstName = update.getCallbackQuery().getFrom().getFirstName();
+            // String lastName = update.getCallbackQuery().getFrom().getLastName();
+            // Long userId = update.getCallbackQuery().getFrom().getId();
+            // user.setDateLog(date);
+            // user.setTimeLog(time);
+            // user.setFirstName(firstName);
+            // user.setLastName(lastName);
+            // user.setUserId(userId);
+
+            TeamMember teamMember = new TeamMember();
+
+            String member_name = update.getCallbackQuery().getFrom().getFirstName() + " "
                     + update.getCallbackQuery().getFrom().getLastName();
-            String firstName = update.getCallbackQuery().getFrom().getFirstName();
-            String lastName = update.getCallbackQuery().getFrom().getLastName();
+
             Long userId = update.getCallbackQuery().getFrom().getId();
-            user.setDateLog(date);
-            user.setTimeLog(time);
-            user.setFirstName(firstName);
-            user.setLastName(lastName);
-            user.setUserId(userId);
+            teamMember.setUserId(userId);
+            teamMember.setMember_name(member_name);
 
             boolean statusCheck = false;
+            String currentStatus = "";
+
             if (call_data.equals("signin")) {
                 message.setText(
                         date + ": " + update.getCallbackQuery().getFrom().getFirstName() + " has signed in at " + time);
-                user.setStatus("Online");
+                currentStatus = "Online";
 
             } else if (call_data.equals("signout")) {
-                message.setText(date + ": " + name + " has signed out at " + time);
-                user.setStatus("Offline");
+                message.setText(date + ": " + member_name + " has signed out at " + time);
+                currentStatus = "Offline";
 
             } else if (call_data.equals("afk")) {
-                message.setText(date + ": " + name + " is going " + call_data.toUpperCase() + " at " + time);
-                user.setStatus("AFK");
+                message.setText(date + ": " + member_name + " is going " + call_data.toUpperCase() + " at " + time);
+                currentStatus = "AFK";
 
             } else if (call_data.equals("back")) {
-                message.setText(date + ": " + name + " is " + call_data.toUpperCase() + " at " + time);
-                user.setStatus("Online");
+                message.setText(date + ": " + member_name + " is " + call_data.toUpperCase() + " at " + time);
+                currentStatus = "Online";
 
             } else if (call_data.equals("leave")) {
-                message.setText(date + ": " + name + " is " + call_data.toUpperCase() + "ING for the day at " + time);
-                user.setStatus("Leave");
+                message.setText(
+                        date + ": " + member_name + " is " + call_data.toUpperCase() + "ING for the day at " + time);
+                currentStatus = "Leave";
 
             } else if (call_data.equals("status")) {
                 statusCheck = true;
-                List<User> allUser = userService.getAllStatus();
+                List<StatusResponse> allUser = userService.getStausDetails();
                 String listData = "Status:";
-                for (User e : allUser) {
+                for (StatusResponse eachUserObject : allUser) {
                     listData += "\n";
-                    listData += e.getFirstName() + ": " + e.getStatus();
+                    listData += eachUserObject.getMember_name() + ": " + eachUserObject.getEvent_type();
                 }
                 message.setText(listData);
 
             }
-            System.out.println(user.toString());
-            if (!statusCheck)
-                userService.check(user);
-            message.setChatId(teamChatID);
+            System.out.println(teamMember.toString());
+            MemberEvent memberEvent = new MemberEvent();
+            List<MemberEvent> status = new ArrayList<>();
+
+            if (!statusCheck) {
+                memberEvent.setEvent_type(currentStatus);
+                status.add(memberEvent);
+                teamMember.setMember_events(status);
+                userService.addLog(teamMember);
+            }
+            message.setChatId(LOGGER_CHAT_ID);
             try {
                 execute(message);
             } catch (TelegramApiException e) {
