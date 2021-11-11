@@ -1,21 +1,16 @@
 package com.rwos.rwos_logger.Bot;
 
-import java.lang.ModuleLayer.Controller;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.PreDestroy;
 
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rwos.rwos_logger.Controller.MemberController;
-import com.rwos.rwos_logger.DTO.StatusResponse;
 import com.rwos.rwos_logger.Entity.MemberEvent;
 import com.rwos.rwos_logger.Entity.TeamMember;
-import com.rwos.rwos_logger.Entity.User;
 import com.rwos.rwos_logger.Service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -169,11 +164,18 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
             } else if (call_data.equals("status")) {
                 statusCheck = true;
-                List<StatusResponse> allUser = userService.getStausDetails();
+                List<Object[]> allUser = userService.getStausDetails();
                 String listData = "Status:";
-                for (StatusResponse eachUserObject : allUser) {
+                ObjectMapper mapper = new ObjectMapper();
+                for (Object[] eachUserObject : allUser) {
                     listData += "\n";
-                    listData += eachUserObject.getMember_name() + ": " + eachUserObject.getEvent_type();
+                    try {
+                        String data = mapper.writeValueAsString(eachUserObject);
+                        data = data.replaceAll("[\"\\]\\[]", "");
+                        listData += data.split(",")[0] + ": " + data.split(",")[1];
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
                 }
                 message.setText(listData);
 
