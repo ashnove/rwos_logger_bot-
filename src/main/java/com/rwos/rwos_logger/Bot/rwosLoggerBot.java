@@ -91,6 +91,11 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 leaveButton.setCallbackData("leave");
                 rowInline4.add(leaveButton);
 
+                InlineKeyboardButton lunchButton = new InlineKeyboardButton();
+                lunchButton.setText("Lunch");
+                lunchButton.setCallbackData("lunch");
+                rowInline4.add(lunchButton);
+
                 rowsInline.add(rowInline4);
 
                 markupInline.setKeyboard(rowsInline);
@@ -161,6 +166,10 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 message.setText(
                         date + ": " + member_name + " is " + call_data.toUpperCase() + "ING for the day at " + time);
                 currentStatus = "Leave";
+            } else if (call_data.equals("lunch")) {
+                message.setText(
+                        date + ": " + member_name + " is going on a " + call_data.toUpperCase() + " BREAK at " + time);
+                currentStatus = "Lunch";
 
             } else if (call_data.equals("status")) {
                 statusCheck = true;

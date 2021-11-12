@@ -27,6 +27,16 @@ public class MemberEvent {
         event_timestamp = new Date();
     }
 
+    private Long userId_fk;
+
+    public Long getUserId_fk() {
+        return userId_fk;
+    }
+
+    public void setUserId_fk(Long userId_fk) {
+        this.userId_fk = userId_fk;
+    }
+
     public Long getMember_event_id() {
         return member_event_id;
     }

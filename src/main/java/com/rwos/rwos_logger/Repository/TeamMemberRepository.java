@@ -18,7 +18,7 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     public List<StatusResponse> getStatusInfo();
 
     @Query(value = GET_CURRENT_STATUS_OF_EMPLOYEES, nativeQuery = true)
-    public List<Object> getCurrentStatusInfo();
+    public List<Object[]> getCurrentStatusInfo();
 
     public TeamMember findByUserId(Long userId);
 }

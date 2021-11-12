@@ -1,5 +1,6 @@
 package com.rwos.rwos_logger.Entity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.persistence.CascadeType;
@@ -22,6 +23,7 @@ public class TeamMember {
     private List<MemberEvent> member_events;
 
     public TeamMember() {
+        member_events = new ArrayList<>();
     }
 
     public Long getUserId() {
