@@ -4,11 +4,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.PreDestroy;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rwos.rwos_logger.Entity.MemberEvent;
 import com.rwos.rwos_logger.Entity.TeamMember;
 import com.rwos.rwos_logger.Service.UserService;
@@ -35,6 +34,14 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
     @Value("${app.chatid}")
     private String FRESHER_TEAM_CHAT_ID;
+
+    private static String SIGNED_IN = "Online";
+    private static String SIGNED_OFF = "Offline";
+    private static String AFK = "AFK";
+    private static String LUNCH = "Lunch";
+    private static String BACK = "Online";
+    private static String LEAVE = "Leave";
+
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -120,19 +127,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
             System.out.println("callback name: " + update.getCallbackQuery().getFrom().getFirstName());
 
-            // User user = new User();
-
-            // String name = update.getCallbackQuery().getFrom().getFirstName() + " "
-            // + update.getCallbackQuery().getFrom().getLastName();
-            // String firstName = update.getCallbackQuery().getFrom().getFirstName();
-            // String lastName = update.getCallbackQuery().getFrom().getLastName();
-            // Long userId = update.getCallbackQuery().getFrom().getId();
-            // user.setDateLog(date);
-            // user.setTimeLog(time);
-            // user.setFirstName(firstName);
-            // user.setLastName(lastName);
-            // user.setUserId(userId);
-
             TeamMember teamMember = new TeamMember();
 
             String member_name = update.getCallbackQuery().getFrom().getFirstName() + " "
@@ -143,46 +137,90 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             teamMember.setMember_name(member_name);
 
             boolean statusCheck = false;
+            boolean invalidLog = false;
             String currentStatus = "";
 
+            MemberEvent lastLoggedEvent = new MemberEvent();
+            lastLoggedEvent = userService.getLastLoggedData(teamMember);
+            String lastLoggedStatus = SIGNED_OFF;
+
+            if(!Objects.isNull(lastLoggedEvent)){
+                lastLoggedStatus = lastLoggedEvent.getEvent_type();
+            }
+            System.out.println("lastLoggedStatus: " + lastLoggedStatus);
+            String setText = "";
             if (call_data.equals("signin")) {
-                message.setText(
-                        date + ": " + update.getCallbackQuery().getFrom().getFirstName() + " has signed in at " + time);
-                currentStatus = "Online";
+                
+                if(lastLoggedStatus.equals(SIGNED_OFF)){
+                    setText = date + ": " + update.getCallbackQuery().getFrom().getFirstName() + " has signed in at " + time;
+                    currentStatus = SIGNED_IN;
+                }
+                else{
+                    invalidLog = true;
+                    setText = "You are already Signed In!";
+                }
+                
 
             } else if (call_data.equals("signout")) {
-                message.setText(date + ": " + member_name + " has signed out at " + time);
-                currentStatus = "Offline";
+                if(lastLoggedStatus.equals(SIGNED_IN) || lastLoggedStatus.equals(LEAVE)){
+                    setText = date + ": " + member_name + " has signed out at " + time;
+                    currentStatus = SIGNED_OFF;
+                }
+                else{
+                    invalidLog = true;
+                    if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have already Signed Off!";
+                    if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
+                }
 
             } else if (call_data.equals("afk")) {
-                message.setText(date + ": " + member_name + " is going " + call_data.toUpperCase() + " at " + time);
-                currentStatus = "AFK";
+                if(lastLoggedStatus.equals(SIGNED_IN)){
+                    setText = date + ": " + member_name + " is going " + call_data.toUpperCase() + " at " + time;
+                    currentStatus = AFK;
+                }
+                else{
+                    invalidLog = true;
+                    if(lastLoggedStatus.equals(AFK) || lastLoggedStatus.equals(LUNCH) ) setText = "You are already AFK!";
+                    if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have Signed Off already!";
+                    if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
+                }
 
             } else if (call_data.equals("back")) {
-                message.setText(date + ": " + member_name + " is " + call_data.toUpperCase() + " at " + time);
-                currentStatus = "Online";
+                if(lastLoggedStatus.equals(AFK) || lastLoggedStatus.equals(LUNCH)){
+                    setText = date + ": " + member_name + " is " + call_data.toUpperCase() + " at " + time;
+                    currentStatus = BACK;
+                }
+                else{
+                    invalidLog = true;
+                    setText = "You are already available!";
+                    if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have Signed Off already!";
+                    if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
+                }
 
             } else if (call_data.equals("leave")) {
-                message.setText(
-                        date + ": " + member_name + " is " + call_data.toUpperCase() + "ING for the day at " + time);
-                currentStatus = "Leave";
+                setText = date + ": " + member_name + " is going on " + call_data.toUpperCase() + " at " + time;
+                currentStatus = LEAVE;
             } else if (call_data.equals("lunch")) {
-                message.setText(
-                        date + ": " + member_name + " is going on a " + call_data.toUpperCase() + " BREAK at " + time);
-                currentStatus = "Lunch";
+                if(lastLoggedStatus.equals(SIGNED_IN)){
+                    setText = date + ": " + member_name + " is going on a " + call_data.toUpperCase() + " BREAK at " + time;
+                    currentStatus = LUNCH;
+                }
+                else{
+                    invalidLog = true;
+                    if(lastLoggedStatus.equals(AFK) || lastLoggedStatus.equals(LUNCH) ) setText = "You are already AFK!";
+                    if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have Signed Off already!";
+                    if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
+                }
 
             } else if (call_data.equals("status")) {
                 statusCheck = true;
-                List<Object[]> allUser = userService.getStausDetails();
+                List<MemberEvent> allEmployee = userService.getAllEmployeeStausDetails();
                 String listData = "Status:";
-                ObjectMapper mapper = new ObjectMapper();
-                for (Object[] eachUserObject : allUser) {
+                for (MemberEvent eachEmployeeStatus : allEmployee) {
                     listData += "\n";
                     try {
-                        String data = mapper.writeValueAsString(eachUserObject);
-                        data = data.replaceAll("[\"\\]\\[]", "");
-                        listData += data.split(",")[0] + ": " + data.split(",")[1];
-                    } catch (JsonProcessingException e) {
+                        String employeeName = userService.getNameByUserId(eachEmployeeStatus.getUserId_fk());
+                        listData += employeeName + ": " + eachEmployeeStatus.getEvent_type();
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -192,14 +230,19 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             System.out.println(teamMember.toString());
             MemberEvent memberEvent = new MemberEvent();
             List<MemberEvent> status = new ArrayList<>();
-
-            if (!statusCheck) {
+            
+            if(!statusCheck) message.setText(setText);
+            if (!statusCheck && !invalidLog) {
                 memberEvent.setEvent_type(currentStatus);
                 status.add(memberEvent);
                 teamMember.setMember_events(status);
                 userService.addLog(teamMember);
+                message.setChatId(LOGGER_CHAT_ID);
             }
-            message.setChatId(LOGGER_CHAT_ID);
+            else{ 
+                message.setChatId(LOGGER_CHAT_ID);
+            }
+            
             try {
                 execute(message);
             } catch (TelegramApiException e) {
@@ -221,13 +264,13 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
     @AfterBotRegistration
     public void afterBotHookWithSession(BotSession session) {
-        System.out.println("Session stored");
+        System.out.println("Session stored...");
         this.session = session;
     }
 
     @PreDestroy
     public void destroyComponent() {
-        System.out.println("destroing component");
+        System.out.println("Destroying Component...");
         session.stop();
     }
 

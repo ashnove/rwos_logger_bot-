@@ -61,4 +61,10 @@ public class MemberEvent {
         this.event_type = event_type;
     }
 
+    @Override
+    public String toString() {
+        return "MemberEvent [event_timestamp=" + event_timestamp + ", event_type=" + event_type + ", userId_fk="
+                + userId_fk + "]";
+    }
+
 }
