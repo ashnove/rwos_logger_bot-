@@ -21,9 +21,7 @@ public class UserService {
     private MemberEventRepository memberEventRepository;
 
     public void addLog(TeamMember member) {
-        MemberEvent getUser = new MemberEvent();
-        getUser = memberEventRepository.getEmployeeLastLoggedData(member.getUserId());
-        System.out.println(getUser.toString());
+        MemberEvent getUser = memberEventRepository.getEmployeeLastLoggedData(member.getUserId());
         if(!Objects.isNull(getUser)) {
             MemberEvent memberEvent = new MemberEvent();
             memberEvent = member.getMember_events().get(0);

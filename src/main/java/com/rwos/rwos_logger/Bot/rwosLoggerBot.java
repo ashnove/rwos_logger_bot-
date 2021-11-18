@@ -1,10 +1,12 @@
 package com.rwos.rwos_logger.Bot;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Formatter;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PreDestroy;
 
@@ -17,6 +19,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -30,10 +34,15 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
     @Autowired
     private UserService userService;
 
+    Integer sentMessageId;
     BotSession session = null;
+    boolean menuActive = false;     
 
     @Value("${app.chatid}")
     private String FRESHER_TEAM_CHAT_ID;
+
+    @Value("${app.botid}")
+    private String BOT_TOKEN;
 
     private static String SIGNED_IN = "Online";
     private static String SIGNED_OFF = "Offline";
@@ -111,7 +120,9 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
             message.setChatId(update.getMessage().getChatId().toString());
             try {
-                execute(message);
+                Message sentMessage = execute(message);
+                sentMessageId = sentMessage.getMessageId();
+                menuActive = true;
             } catch (TelegramApiException e) {
                 e.printStackTrace();
             }
@@ -119,19 +130,13 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             String call_data = update.getCallbackQuery().getData();
             String LOGGER_CHAT_ID = update.getCallbackQuery().getMessage().getChatId().toString();
             SendMessage message = new SendMessage();
-            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-            LocalDateTime now = LocalDateTime.now();
-            String date_time = dtf.format(now);
-            String date = date_time.split(" ")[0];
-            String time = date_time.split(" ")[1];
-
-            System.out.println("callback name: " + update.getCallbackQuery().getFrom().getFirstName());
-
+            Date currentTimeStamp = new Date();
+            String date = getEventDate(currentTimeStamp);
+            String time = getEventTime(currentTimeStamp);
+            
             TeamMember teamMember = new TeamMember();
-
             String member_name = update.getCallbackQuery().getFrom().getFirstName() + " "
                     + update.getCallbackQuery().getFrom().getLastName();
-
             Long userId = update.getCallbackQuery().getFrom().getId();
             teamMember.setUserId(userId);
             teamMember.setMember_name(member_name);
@@ -143,15 +148,12 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             MemberEvent lastLoggedEvent = new MemberEvent();
             lastLoggedEvent = userService.getLastLoggedData(teamMember);
             String lastLoggedStatus = SIGNED_OFF;
-
             if(!Objects.isNull(lastLoggedEvent)){
                 lastLoggedStatus = lastLoggedEvent.getEvent_type();
             }
-            System.out.println("lastLoggedStatus: " + lastLoggedStatus);
             String setText = "";
             if (call_data.equals("signin")) {
-                
-                if(lastLoggedStatus.equals(SIGNED_OFF)){
+                if(lastLoggedStatus.equals(SIGNED_OFF) || lastLoggedStatus.equals(LEAVE)){
                     setText = date + ": " + update.getCallbackQuery().getFrom().getFirstName() + " has signed in at " + time;
                     currentStatus = SIGNED_IN;
                 }
@@ -159,8 +161,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                     invalidLog = true;
                     setText = "You are already Signed In!";
                 }
-                
-
             } else if (call_data.equals("signout")) {
                 if(lastLoggedStatus.equals(SIGNED_IN) || lastLoggedStatus.equals(LEAVE)){
                     setText = date + ": " + member_name + " has signed out at " + time;
@@ -168,10 +168,10 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 }
                 else{
                     invalidLog = true;
+                    if(lastLoggedStatus.equals(AFK)) setText = "You aren't back from AFK yet!";
                     if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have already Signed Off!";
                     if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
                 }
-
             } else if (call_data.equals("afk")) {
                 if(lastLoggedStatus.equals(SIGNED_IN)){
                     setText = date + ": " + member_name + " is going " + call_data.toUpperCase() + " at " + time;
@@ -183,7 +183,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                     if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have Signed Off already!";
                     if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
                 }
-
             } else if (call_data.equals("back")) {
                 if(lastLoggedStatus.equals(AFK) || lastLoggedStatus.equals(LUNCH)){
                     setText = date + ": " + member_name + " is " + call_data.toUpperCase() + " at " + time;
@@ -195,7 +194,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                     if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have Signed Off already!";
                     if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
                 }
-
             } else if (call_data.equals("leave")) {
                 setText = date + ": " + member_name + " is going on " + call_data.toUpperCase() + " at " + time;
                 currentStatus = LEAVE;
@@ -210,22 +208,34 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                     if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have Signed Off already!";
                     if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
                 }
-
             } else if (call_data.equals("status")) {
                 statusCheck = true;
                 List<MemberEvent> allEmployee = userService.getAllEmployeeStausDetails();
-                String listData = "Status:";
+                Formatter fmt = new Formatter();  
+                fmt.format("%10s %13s %8s %8s %8s\n", "Date", "Name", "Status", "LogTime", "Duration");
+                String dash = "";
+                for(int i = 0; i < 10 + 13 + 8 + 8 + 8 + 4; i++){
+                    dash += '-';
+                }
+                fmt.format("%s\n", dash);
                 for (MemberEvent eachEmployeeStatus : allEmployee) {
-                    listData += "\n";
+                    // listData += "\n";
                     try {
+                        Date timeStampOld = eachEmployeeStatus.getEvent_timestamp();
+                        Date timeStampNew = new Date();
+                        String duration = getDuration(timeStampOld, timeStampNew);
                         String employeeName = userService.getNameByUserId(eachEmployeeStatus.getUserId_fk());
-                        listData += employeeName + ": " + eachEmployeeStatus.getEvent_type();
+                        String event_time = getEventTime(eachEmployeeStatus.getEvent_timestamp());
+                        String event_date = getEventDate(eachEmployeeStatus.getEvent_timestamp());
+                        fmt.format("%10s %13s %8s %8s %8s\n", event_date, employeeName.split(" ")[0], eachEmployeeStatus.getEvent_type(), event_time, duration);
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }
-                message.setText(listData);
-
+                }   
+                message.enableMarkdownV2(true);
+                message.setText( "```" + fmt.toString() + "```");
+                fmt.close();
             }
             System.out.println(teamMember.toString());
             MemberEvent memberEvent = new MemberEvent();
@@ -242,14 +252,39 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             else{ 
                 message.setChatId(LOGGER_CHAT_ID);
             }
-            
             try {
                 execute(message);
+                if(menuActive){
+                    DeleteMessage deleteMessage = new DeleteMessage(LOGGER_CHAT_ID, sentMessageId);
+                    execute(deleteMessage);
+                    menuActive = false;
+                }
             } catch (TelegramApiException e) {
                 e.printStackTrace();
             }
         }
-
+    }
+    String getDuration(Date timeStampOld, Date timeStampNew){
+        String duration = "";
+        Long timeDifference = timeStampNew.getTime() - timeStampOld.getTime();
+        Long mins = TimeUnit.MILLISECONDS.toMinutes(timeDifference) % 60;
+        Long hrs = TimeUnit.MILLISECONDS.toHours(timeDifference) % 24;
+        Long days = TimeUnit.MILLISECONDS.toDays(timeDifference);
+        if(days > 0) return days + " day" + ((days > 1) ? "s" : "");
+        if(hrs > 1) duration += hrs + "h ";
+        if(mins > 1)duration += mins + "m";
+        else return "0m";
+        return duration;
+    }
+    String getEventTime(Date timeStamp){
+        SimpleDateFormat timeFormatter = new SimpleDateFormat("HH:mm");
+        String time = timeFormatter.format(timeStamp.getTime());
+        return time;
+    }
+    String getEventDate(Date timeStamp){
+        SimpleDateFormat dateFormatter = new SimpleDateFormat("dd/MM/yyyy");
+        String date = dateFormatter.format(timeStamp.getTime());
+        return date;
     }
 
     @Override
@@ -259,7 +294,7 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        return "2083850789:AAEkOGOdbhUsEJM78SMJ_C4tY7l6F2FEcmw";
+        return BOT_TOKEN;
     }
 
     @AfterBotRegistration
