@@ -28,6 +28,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.BotSession;
 import org.telegram.telegrambots.starter.AfterBotRegistration;
 
+
 @Component
 public class rwosLoggerBot extends TelegramLongPollingBot {
 
@@ -168,7 +169,8 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 }
                 else{
                     invalidLog = true;
-                    if(lastLoggedStatus.equals(AFK)) setText = "You aren't back from AFK yet!";
+                    if(lastLoggedStatus.equals(LUNCH)) setText = "You are at Lunch!";
+                    if(lastLoggedStatus.equals(AFK)) setText = "You are AFK!";
                     if(lastLoggedStatus.equals(SIGNED_OFF)) setText = "You have already Signed Off!";
                     if(lastLoggedStatus.equals(LEAVE)) setText = "You are on Leave!";
                 }
@@ -219,7 +221,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 }
                 fmt.format("%s\n", dash);
                 for (MemberEvent eachEmployeeStatus : allEmployee) {
-                    // listData += "\n";
                     try {
                         Date timeStampOld = eachEmployeeStatus.getEvent_timestamp();
                         Date timeStampNew = new Date();
@@ -237,7 +238,6 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 message.setText( "```" + fmt.toString() + "```");
                 fmt.close();
             }
-            System.out.println(teamMember.toString());
             MemberEvent memberEvent = new MemberEvent();
             List<MemberEvent> status = new ArrayList<>();
             
@@ -247,14 +247,26 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 status.add(memberEvent);
                 teamMember.setMember_events(status);
                 userService.addLog(teamMember);
-                message.setChatId(LOGGER_CHAT_ID);
             }
             else{ 
                 message.setChatId(LOGGER_CHAT_ID);
             }
             try {
-                execute(message);
-                if(menuActive){
+                if (!statusCheck && !invalidLog) {
+                    memberEvent.setEvent_type(currentStatus);
+                    status.add(memberEvent);
+                    teamMember.setMember_events(status);
+                    userService.addLog(teamMember);
+                    message.setChatId(LOGGER_CHAT_ID);
+                    execute(message);
+                    message.setChatId(FRESHER_TEAM_CHAT_ID);
+                    execute(message);
+                    message.setText("Testing");
+                    execute(message);
+                }else{
+                    execute(message);    
+                }        
+                if(menuActive && !invalidLog){
                     DeleteMessage deleteMessage = new DeleteMessage(LOGGER_CHAT_ID, sentMessageId);
                     execute(deleteMessage);
                     menuActive = false;
@@ -271,8 +283,8 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
         Long hrs = TimeUnit.MILLISECONDS.toHours(timeDifference) % 24;
         Long days = TimeUnit.MILLISECONDS.toDays(timeDifference);
         if(days > 0) return days + " day" + ((days > 1) ? "s" : "");
-        if(hrs > 1) duration += hrs + "h ";
-        if(mins > 1)duration += mins + "m";
+        if(hrs > 0) duration += hrs + "h ";
+        if(mins > 0)duration += mins + "m";
         else return "0m";
         return duration;
     }
@@ -299,13 +311,13 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
 
     @AfterBotRegistration
     public void afterBotHookWithSession(BotSession session) {
-        System.out.println("Session stored...");
+        // System.out.println("Initiating Session...");
         this.session = session;
     }
 
     @PreDestroy
     public void destroyComponent() {
-        System.out.println("Destroying Component...");
+        // System.out.println("Terminating Session...");
         session.stop();
     }
 
