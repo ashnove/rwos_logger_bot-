@@ -39,8 +39,11 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
     BotSession session = null;
     boolean menuActive = false;     
 
-    @Value("${app.chatid}")
+    @Value("${app.fresher.chatid}")
     private String FRESHER_TEAM_CHAT_ID;
+
+    @Value("${app.rwteam.chatid}")
+    private String RWTEAM_CHAT_ID;
 
     @Value("${app.botid}")
     private String BOT_TOKEN;
@@ -51,6 +54,8 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
     private static String LUNCH = "Lunch";
     private static String BACK = "Online";
     private static String LEAVE = "Leave";
+    private static String INVALID_COMMAND = "Invalid Command! Press '/' for command options.";
+    private static String INVALID_INPUT = "Invalid Input! Use Options from the displayed Menu. ";
 
 
     @Override
@@ -63,8 +68,7 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
             if (command.equals("/start")) {
                 message.setText("Welcome to RWOS Logger! Send /menu to begin.");
             }
-            if (command.equals("/menu")) {
-
+            else if (command.equals("/team")) {
                 message.setText("Choose an option:");
                 InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
                 List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
@@ -118,7 +122,9 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                 markupInline.setKeyboard(rowsInline);
                 message.setReplyMarkup(markupInline);
             }
-
+            else {
+                message.setText(INVALID_COMMAND);
+            }
             message.setChatId(update.getMessage().getChatId().toString());
             try {
                 Message sentMessage = execute(message);
@@ -259,9 +265,7 @@ public class rwosLoggerBot extends TelegramLongPollingBot {
                     userService.addLog(teamMember);
                     message.setChatId(LOGGER_CHAT_ID);
                     execute(message);
-                    message.setChatId(FRESHER_TEAM_CHAT_ID);
-                    execute(message);
-                    message.setText("Testing");
+                    message.setChatId(RWTEAM_CHAT_ID);
                     execute(message);
                 }else{
                     execute(message);    
