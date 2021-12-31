@@ -1,7 +1,9 @@
 package com.rwos.rwos_logger.DTO;
 
 import java.util.Date;
-
+/*
+* author: Ashutosh
+*/
 public class StatusResponse {
 
     private String member_name;
@@ -11,10 +13,6 @@ public class StatusResponse {
     public StatusResponse() {
 
     }
-    // public StatusResponse(Long member_event_id){
-    //     this.member_event_id =  member_event_id;
-    // }
-
     public StatusResponse(String member_name, String event_type, Date event_timestamp) {
         this.member_name = member_name;
         this.event_type = event_type;

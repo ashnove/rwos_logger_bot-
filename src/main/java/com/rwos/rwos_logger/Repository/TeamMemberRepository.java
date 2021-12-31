@@ -8,7 +8,9 @@ import com.rwos.rwos_logger.Entity.TeamMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
-
+/*
+* author: Ashutosh
+*/
 @Repository
 public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 

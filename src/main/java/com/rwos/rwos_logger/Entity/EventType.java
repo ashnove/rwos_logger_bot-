@@ -2,7 +2,9 @@ package com.rwos.rwos_logger.Entity;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
-
+/*
+* author: Ashutosh
+*/
 @Entity
 public class EventType {
 

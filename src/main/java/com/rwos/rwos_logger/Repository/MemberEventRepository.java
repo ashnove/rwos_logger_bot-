@@ -6,7 +6,9 @@ import com.rwos.rwos_logger.Entity.MemberEvent;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
+/*
+* author: Ashutosh
+*/
 
 // @Repository
 public interface MemberEventRepository extends JpaRepository<MemberEvent, Long> {

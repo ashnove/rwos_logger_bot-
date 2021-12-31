@@ -10,7 +10,9 @@ import javax.persistence.Id;
 import javax.persistence.PrePersist;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-
+/*
+* author: Ashutosh
+*/
 @Entity
 public class MemberEvent {
     @Id
